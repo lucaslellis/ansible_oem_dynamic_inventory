@@ -1,0 +1,6 @@
+[OEM_REPOSITORY_CONNECTION]
+HOST_NAME =
+PORT =
+USERNAME =          ; Must be the OEM repository owner
+PASSWORD =
+SERVICE_NAME =

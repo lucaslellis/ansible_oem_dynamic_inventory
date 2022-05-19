@@ -1,0 +1,8 @@
+{
+    "<GROUP_NAME>": {
+        "ansible_ssh_user": "<VALUE>"
+    },
+    "HOST_NAME": {
+        "ansible_ssh_user": "<VALUE>"
+    }
+}
