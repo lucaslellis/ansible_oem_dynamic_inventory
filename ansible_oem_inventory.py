@@ -9,7 +9,6 @@ Description: A python script to create an Ansible dynamic inventory
 
 Requires: cx_Oracle
 
-TODO fix AIX groups
 TODO multiple repository support
 """
 
