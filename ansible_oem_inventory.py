@@ -9,6 +9,7 @@ Description: A python script to create an Ansible dynamic inventory
 
 Requires: cx_Oracle
 
+TODO fix AIX groups
 TODO multiple repository support
 """
 
@@ -224,10 +225,9 @@ def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
         except KeyError:
             static_vars_grp = {}
         ansible_dict[oper_syst] = {"children":
-                                   [grp for grp in
-                                    ansible_dict
-                                    if oper_syst in grp
-                                    ],
+                                   list({vers[5] for vers in list_oem_targets
+                                     if vers[4] == oper_syst
+                                     }),
                                    "vars": static_vars_grp}
 
 
