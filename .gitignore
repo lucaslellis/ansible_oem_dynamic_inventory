@@ -1,3 +1,4 @@
 config.ini
 static_vars.json
 queries.sql
+build/*.zip
