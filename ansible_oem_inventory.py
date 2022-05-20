@@ -69,26 +69,32 @@ def retrieve_oem_targets(repo_connection):
         select
             lower(tgt.target_name) target_name,
             lower(ipadr.property_value) ip_address,
-            lower(lfcl.property_value) lifecycle_status,
-            lower(lnbus.property_value) line_of_business,
-            lower(tgt.type_qualifier1) operating_system,
             regexp_replace(
-                lower(tgt.type_qualifier2),
-                '[(). ]+', '_') os_version
+                regexp_replace(
+                    lower(lfcl.property_value), '[^0-9a-z_]+', '_'),
+                    '^([0-9])', :lfcl_ld_num
+                ) lifecycle_status,
+            regexp_replace(regexp_replace(lower(lnbus.property_value),
+                '[^0-9a-z_]+', '_'), '^([0-9])',
+                :lnbus_ld_num) line_of_business,
+            regexp_replace(regexp_replace(lower(tgt.type_qualifier1),
+                '[^0-9a-z_]+', '_'), '^([0-9])', :os_ld_num) operating_system,
+            regexp_replace(regexp_replace(lower(tgt.type_qualifier2),
+                '[^0-9a-z_]+', '_'), '^([0-9])', :os_ver_ld_num) os_version
         from
             mgmt$target tgt
             join mgmt$target_properties ipadr
                 on tgt.target_name = ipadr.target_name
-                and tgt.target_type = ipadr.target_type
-                and tgt.target_guid = ipadr.target_guid
+            and tgt.target_type = ipadr.target_type
+            and tgt.target_guid = ipadr.target_guid
             left outer join mgmt$target_properties lfcl
                 on tgt.target_name = lfcl.target_name
-                and tgt.target_type = lfcl.target_type
-                and tgt.target_guid = lfcl.target_guid
+            and tgt.target_type = lfcl.target_type
+            and tgt.target_guid = lfcl.target_guid
             left outer join mgmt$target_properties lnbus
                 on tgt.target_name = lnbus.target_name
-                and tgt.target_type = lnbus.target_type
-                and tgt.target_guid = lnbus.target_guid
+            and tgt.target_type = lnbus.target_type
+            and tgt.target_guid = lnbus.target_guid
         where
             tgt.target_type = 'host'
             and ipadr.property_name = 'IP_address'
@@ -105,7 +111,9 @@ def retrieve_oem_targets(repo_connection):
     """
 
     query_cursor = repo_connection.cursor()
-    query_cursor.execute(query_txt)
+    query_cursor.execute(
+        query_txt, lfcl_ld_num="_\\1", lnbus_ld_num="_\\1", os_ld_num="_\\1",
+        os_ver_ld_num="_\\1")
 
     results = query_cursor.fetchall()
 
@@ -132,15 +140,16 @@ def build_dictionary(list_oem_targets, static_vars):
         dictionary - a dictionary of targets and groups for Ansible
     """
 
-    ansible_dict = build_lnbus_lfcycle_groups(list_oem_targets, static_vars)
+    ansible_dict = {}
 
+    build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict)
     build_meta_group(list_oem_targets, static_vars, ansible_dict)
-
     build_line_business_groups(list_oem_targets, static_vars, ansible_dict)
     build_os_version_groups(list_oem_targets, static_vars, ansible_dict)
     build_oper_system_groups(list_oem_targets, static_vars, ansible_dict)
 
     return ansible_dict
+
 
 def build_meta_group(list_oem_targets, static_vars, ansible_dict):
     """Builds the _meta group.
@@ -173,7 +182,7 @@ def build_meta_group(list_oem_targets, static_vars, ansible_dict):
 
 
 def build_line_business_groups(list_oem_targets, static_vars, ansible_dict):
-    """Builds parent groups based on Line of Business.
+    """Builds groups based on Line of Business.
 
     Args:
         list_oem_targets (list): list of OEM targets containing a 6-member
@@ -193,12 +202,10 @@ def build_line_business_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = static_vars[lnbus]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[lnbus] = {"children":
-                               [grp for grp in
-                                ansible_dict
-                                if grp.startswith(lnbus)
-                                   and grp != lnbus
-                                ],
+        ansible_dict[lnbus] = {"hosts":
+                               [tgt[0]
+                                for tgt in list_oem_targets
+                                if tgt[3] == lnbus],
                                "vars": static_vars_grp}
 
 
@@ -225,8 +232,8 @@ def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = {}
         ansible_dict[oper_syst] = {"children":
                                    list({vers[5] for vers in list_oem_targets
-                                     if vers[4] == oper_syst
-                                     }),
+                                         if vers[4] == oper_syst
+                                         }),
                                    "vars": static_vars_grp}
 
 
@@ -246,6 +253,9 @@ def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     os_version_set = {os_version_set[5] for os_version_set in list_oem_targets}
+
+    # Some Operating Systems have their version name start with leading
+    # numbers, which are not valid group names for Ansible
     for os_version in os_version_set:
         try:
             static_vars_grp = static_vars[os_version]
@@ -258,8 +268,8 @@ def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
                                     "vars": static_vars_grp}
 
 
-def build_lnbus_lfcycle_groups(list_oem_targets, static_vars):
-    """Builds oper groups based on Line of business and lifecycle status.
+def build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict):
+    """Builds groups based on lifecycle status.
        Returns the initial dictionary.
 
     Args:
@@ -273,45 +283,17 @@ def build_lnbus_lfcycle_groups(list_oem_targets, static_vars):
                                  - OS version
         static_vars (dict): Dictionary of hardcoded variables
     """
-    groups = {(tgt[3], tgt[2]) for tgt in list_oem_targets}
-    ansible_dict = {}
+    groups = {tgt[2] for tgt in list_oem_targets}
     for grp in groups:
-        grp_name = define_group_name(grp)
         try:
-            static_vars_grp = static_vars[grp_name]
+            static_vars_grp = static_vars[grp]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[grp_name] = {"hosts":
-                                  [tgt[0]
-                                   for tgt in list_oem_targets
-                                   if (tgt[3] == grp[0] and tgt[2] == grp[1])],
-                                  "vars": static_vars_grp}
-
-    return ansible_dict
-
-
-def define_group_name(group_tuple):
-    """Generates a group name based on a tuple containing the lifecycle status
-       and the line of business.
-
-    Args:
-        group_tuple (tuple): a tuple containing (lifecycle status, line of
-                                                 business)
-
-    Returns:
-        string: a string for the group name
-    """
-    # grp_name = (grp[0] + "_" + grp[1])
-    if group_tuple[0] and group_tuple[1]:
-        grp_name = group_tuple[0] + "_" + group_tuple[1]
-    elif group_tuple[0] and group_tuple[1] is None:
-        grp_name = group_tuple[0]
-    elif group_tuple[0] is None and group_tuple[1]:
-        grp_name = group_tuple[1]
-    else:
-        grp_name = "ungrouped"
-
-    return grp_name
+        ansible_dict[grp] = {"hosts":
+                             [tgt[0]
+                              for tgt in list_oem_targets
+                              if tgt[2] == grp],
+                             "vars": static_vars_grp}
 
 
 def read_cli_args():
