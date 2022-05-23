@@ -6,6 +6,13 @@ Based on an example of the book [Ansible for DevOps](http://ansiblefordevops.com
 
 Validated against OEM 13.4.
 
+Groups are dynamically created based on the following properties:
+
+* Lifecycle Status
+* Line of Business
+* Operating System family (e.g.: AIX, Linux, Windows)
+* Operating System version (e.g.: AIX, Linux, Windows)
+
 ## Requirements
 
 * Python 3.x
