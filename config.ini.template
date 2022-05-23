@@ -2,7 +2,8 @@
 [REPOSITORY_NAME]
 HOST_NAME =
 PORT =
-USERNAME =          ; See README.md for the required privileges for the user
+; See README.md for the required privileges for the user
+USERNAME =
 PASSWORD =
 SERVICE_NAME =
 
@@ -10,6 +11,7 @@ SERVICE_NAME =
 [REPOSITORY_NAME]
 HOST_NAME =
 PORT =
-USERNAME =          ; See README.md for the required privileges for the user
+; See README.md for the required privileges for the user
+USERNAME =
 PASSWORD =
 SERVICE_NAME =
