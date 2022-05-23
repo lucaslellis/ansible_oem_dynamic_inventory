@@ -21,7 +21,7 @@ Groups are dynamically created based on the following properties:
 
 ## Instructions
 
-* Download the latest [release](/releases/latest) and unzip it on a
+* Download the latest release and unzip it on a
   directory. The files [ansible_oem_inventory.py](ansible_oem_inventory.py) and
   [config.ini.template](config.ini.template) must exist on the same directory.
 
