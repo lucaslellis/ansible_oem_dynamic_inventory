@@ -23,7 +23,6 @@ import sys
 import cx_Oracle
 
 _CONFIG_FILE = "config.ini"
-_STATIC_VARS_FILE = "static_vars.json"
 
 _JSON_INDENT_SPACES = 4
 _ERR_RET_CODE = 1
@@ -129,7 +128,7 @@ def retrieve_oem_targets(repo_connection):
     return results
 
 
-def build_dictionary(list_oem_targets, static_vars):
+def build_dictionary(list_oem_targets):
     """Builds the dictionary for ansible
 
     Args:
@@ -141,7 +140,6 @@ def build_dictionary(list_oem_targets, static_vars):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dict): Dictionary of hardcoded variables
 
     Returns:
         dictionary - a dictionary of targets and groups for Ansible
@@ -149,16 +147,16 @@ def build_dictionary(list_oem_targets, static_vars):
 
     ansible_dict = {}
 
-    build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict)
-    build_meta_group(list_oem_targets, static_vars, ansible_dict)
-    build_line_business_groups(list_oem_targets, static_vars, ansible_dict)
-    build_os_version_groups(list_oem_targets, static_vars, ansible_dict)
-    build_oper_system_groups(list_oem_targets, static_vars, ansible_dict)
+    build_lifecycle_status_groups(list_oem_targets, ansible_dict)
+    build_meta_group(list_oem_targets, ansible_dict)
+    build_line_business_groups(list_oem_targets, ansible_dict)
+    build_os_version_groups(list_oem_targets, ansible_dict)
+    build_oper_system_groups(list_oem_targets, ansible_dict)
 
     return ansible_dict
 
 
-def build_meta_group(list_oem_targets, static_vars, ansible_dict):
+def build_meta_group(list_oem_targets, ansible_dict):
     """Builds the _meta group.
 
     Args:
@@ -170,25 +168,19 @@ def build_meta_group(list_oem_targets, static_vars, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dict): Dictionary of hardcoded variables
         ansible_dict (dictionary): the ansible dictionary under construction
     """
 
     hostvars = {}
     for tgt in list_oem_targets:
         host_vars_item = {}
-        try:
-            host_vars_item = static_vars[tgt[0]]
-        except KeyError:
-            pass
-
         host_vars_item["ansible_host"] = tgt[1]
         hostvars[tgt[0]] = host_vars_item
 
     ansible_dict["_meta"] = {"hostvars": hostvars}
 
 
-def build_line_business_groups(list_oem_targets, static_vars, ansible_dict):
+def build_line_business_groups(list_oem_targets, ansible_dict):
     """Builds groups based on Line of Business.
 
     Args:
@@ -200,22 +192,16 @@ def build_line_business_groups(list_oem_targets, static_vars, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dictionary): Dictionary of hardcoded variables
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     line_business_set = {lnbus[3] for lnbus in list_oem_targets}
     for lnbus in line_business_set:
-        try:
-            static_vars_grp = static_vars[lnbus]
-        except KeyError:
-            static_vars_grp = {}
         ansible_dict[lnbus] = {
-            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[3] == lnbus],
-            "vars": static_vars_grp,
+            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[3] == lnbus]
         }
 
 
-def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
+def build_oper_system_groups(list_oem_targets, ansible_dict):
     """Builds parent groups based on Operating Systems.
 
     Args:
@@ -227,24 +213,18 @@ def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dictionary): Dictionary of hardcoded variables
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     oper_syst_set = {oper_syst[4] for oper_syst in list_oem_targets}
     for oper_syst in oper_syst_set:
-        try:
-            static_vars_grp = static_vars[oper_syst]
-        except KeyError:
-            static_vars_grp = {}
         ansible_dict[oper_syst] = {
             "children": list(
                 {vers[5] for vers in list_oem_targets if vers[4] == oper_syst}
-            ),
-            "vars": static_vars_grp,
+            )
         }
 
 
-def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
+def build_os_version_groups(list_oem_targets, ansible_dict):
     """Builds oper groups based on Operating Systems Versions.
 
     Args:
@@ -256,7 +236,6 @@ def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dictionary): Dictionary of hardcoded variables
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     os_version_set = {os_version_set[5] for os_version_set in list_oem_targets}
@@ -264,19 +243,14 @@ def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
     # Some Operating Systems have their version name start with leading
     # numbers, which are not valid group names for Ansible
     for os_version in os_version_set:
-        try:
-            static_vars_grp = static_vars[os_version]
-        except KeyError:
-            static_vars_grp = {}
         ansible_dict[os_version] = {
             "hosts": [
                 tgt[0] for tgt in list_oem_targets if tgt[5] == os_version
-            ],
-            "vars": static_vars_grp,
+            ]
         }
 
 
-def build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict):
+def build_lifecycle_status_groups(list_oem_targets, ansible_dict):
     """Builds groups based on lifecycle status.
        Returns the initial dictionary.
 
@@ -289,17 +263,11 @@ def build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
-        static_vars (dict): Dictionary of hardcoded variables
     """
     groups = {tgt[2] for tgt in list_oem_targets}
     for grp in groups:
-        try:
-            static_vars_grp = static_vars[grp]
-        except KeyError:
-            static_vars_grp = {}
         ansible_dict[grp] = {
-            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[2] == grp],
-            "vars": static_vars_grp,
+            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[2] == grp]
         }
 
 
@@ -333,18 +301,6 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    try:
-        with open(
-            os.path.join(sys.path[0], _STATIC_VARS_FILE), encoding="utf-8"
-        ) as st_vars_file:
-            static_vars = json.load(st_vars_file)
-    except OSError as excep:
-        print("Error reading static vars file: " + excep, file=sys.stderr)
-        return _ERR_RET_CODE
-    except json.JSONDecodeError as excep:
-        print("Error decoding static vars file: " + excep, file=sys.stderr)
-        return _ERR_RET_CODE
-
     config = configparser.ConfigParser()
     try:
         config.read(os.path.join(sys.path[0], _CONFIG_FILE))
@@ -367,7 +323,7 @@ def main(argv=None):
 
         cli_args = read_cli_args()
         if cli_args.list:
-            ansible_dict = build_dictionary(targets, static_vars)
+            ansible_dict = build_dictionary(targets)
             print_dictionary(ansible_dict)
         elif cli_args.host:
             # Not implemented as --list is returned with the _meta group.
