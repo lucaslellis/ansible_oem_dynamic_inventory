@@ -11,7 +11,7 @@ Groups are dynamically created based on the following properties:
 * Lifecycle Status
 * Line of Business
 * Operating System family (e.g.: AIX, Linux, Windows)
-* Operating System version (e.g.: AIX, Linux, Windows)
+* Operating System version (e.g.: Windows Server 2012 Enterprise, Oracle Linux 6.4, Oracle Linux 7.9)
 
 ## Requirements
 
