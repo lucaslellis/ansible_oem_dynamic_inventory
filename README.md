@@ -19,6 +19,10 @@ Groups are dynamically created based on the following properties:
 * Python 3.x
 * cx_Oracle
 * Oracle Client or Oracle Database installed on the same host
+* Repository User Privileges:
+  * select on ```"REPOSITORY_OWNER".mgmt$target```
+  * select on ```"REPOSITORY_OWNER".mgmt$target_properties```
+  * Synonyms for ```"REPOSITORY_OWNER".mgmt$target``` and ```"REPOSITORY_OWNER".mgmt$target_properties```
 
 ## Instructions
 
