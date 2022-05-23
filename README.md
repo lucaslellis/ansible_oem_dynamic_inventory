@@ -14,9 +14,9 @@ Validated against OEM 13.4.
 
 ## Instructions
 
-* Download the latest [release](releases) and unzip it on a directory. The files
-  [ansible_oem_inventory.py](ansible_oem_inventory.py) and [config.ini.template](config.ini.template) must exist on the
-  same directory.
+* Download the latest [release](https://github.com/lucaslellis/ansible_oem_dynamic_inventory/releases) and unzip it on a
+  directory. The files [ansible_oem_inventory.py](ansible_oem_inventory.py) and
+  [config.ini.template](config.ini.template) must exist on the same directory.
 
 * Rename [config.ini.template](config.ini.template) to `config.ini` and fill in the repository connection variables.
 
