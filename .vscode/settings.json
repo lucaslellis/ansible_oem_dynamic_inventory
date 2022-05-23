@@ -4,10 +4,9 @@
     "python.linting.pylintArgs": [
         "--extension-pkg-whitelist=cx_Oracle"
     ],
-    "python.formatting.provider": "autopep8",
-    "python.formatting.autopep8Args": [
-        "--max-line-length",
-        "79",
-        "--experimental"
-    ]
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=79"
+    ],
+    "editor.formatOnSave": true
 }

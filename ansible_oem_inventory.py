@@ -26,7 +26,7 @@ _STATIC_VARS_FILE = "static_vars.json"
 _JSON_INDENT_SPACES = 4
 _ERR_RET_CODE = 1
 _SUC_RET_CODE = 0
-_EMPTY_INVENTORY = {'_meta': {'hostvars': {}}}
+_EMPTY_INVENTORY = {"_meta": {"hostvars": {}}}
 
 
 def connect_oracle(host_name, port, username, password, service_name):
@@ -42,10 +42,11 @@ def connect_oracle(host_name, port, username, password, service_name):
                   )
                   (CONNECT_DATA = (SERVICE_NAME = {2}))
               )"""
-    conn = cx_Oracle.Connection(user=username, password=password,
-                                dsn=dsn_fmt.format(host_name,
-                                                   port,
-                                                   service_name))
+    conn = cx_Oracle.Connection(
+        user=username,
+        password=password,
+        dsn=dsn_fmt.format(host_name, port, service_name),
+    )
 
     return conn
 
@@ -112,8 +113,12 @@ def retrieve_oem_targets(repo_connection):
 
     query_cursor = repo_connection.cursor()
     query_cursor.execute(
-        query_txt, lfcl_ld_num="_\\1", lnbus_ld_num="_\\1", os_ld_num="_\\1",
-        os_ver_ld_num="_\\1")
+        query_txt,
+        lfcl_ld_num="_\\1",
+        lnbus_ld_num="_\\1",
+        os_ld_num="_\\1",
+        os_ver_ld_num="_\\1",
+    )
 
     results = query_cursor.fetchall()
 
@@ -202,11 +207,10 @@ def build_line_business_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = static_vars[lnbus]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[lnbus] = {"hosts":
-                               [tgt[0]
-                                for tgt in list_oem_targets
-                                if tgt[3] == lnbus],
-                               "vars": static_vars_grp}
+        ansible_dict[lnbus] = {
+            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[3] == lnbus],
+            "vars": static_vars_grp,
+        }
 
 
 def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
@@ -230,11 +234,12 @@ def build_oper_system_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = static_vars[oper_syst]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[oper_syst] = {"children":
-                                   list({vers[5] for vers in list_oem_targets
-                                         if vers[4] == oper_syst
-                                         }),
-                                   "vars": static_vars_grp}
+        ansible_dict[oper_syst] = {
+            "children": list(
+                {vers[5] for vers in list_oem_targets if vers[4] == oper_syst}
+            ),
+            "vars": static_vars_grp,
+        }
 
 
 def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
@@ -261,11 +266,12 @@ def build_os_version_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = static_vars[os_version]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[os_version] = {"hosts":
-                                    [tgt[0]
-                                     for tgt in list_oem_targets
-                                     if tgt[5] == os_version],
-                                    "vars": static_vars_grp}
+        ansible_dict[os_version] = {
+            "hosts": [
+                tgt[0] for tgt in list_oem_targets if tgt[5] == os_version
+            ],
+            "vars": static_vars_grp,
+        }
 
 
 def build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict):
@@ -289,15 +295,14 @@ def build_lifecycle_status_groups(list_oem_targets, static_vars, ansible_dict):
             static_vars_grp = static_vars[grp]
         except KeyError:
             static_vars_grp = {}
-        ansible_dict[grp] = {"hosts":
-                             [tgt[0]
-                              for tgt in list_oem_targets
-                              if tgt[2] == grp],
-                             "vars": static_vars_grp}
+        ansible_dict[grp] = {
+            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[2] == grp],
+            "vars": static_vars_grp,
+        }
 
 
 def read_cli_args():
-    """ Reads the command-line arguments
+    """Reads the command-line arguments
 
     Ansible inventory requires that the script responds to two arguments:
     --host
@@ -327,7 +332,9 @@ def main(argv=None):
         argv = sys.argv
 
     try:
-        with open(os.path.join(sys.path[0], _STATIC_VARS_FILE), encoding="utf-8") as st_vars_file:
+        with open(
+            os.path.join(sys.path[0], _STATIC_VARS_FILE), encoding="utf-8"
+        ) as st_vars_file:
             static_vars = json.load(st_vars_file)
     except OSError as excep:
         print("Error reading static vars file: " + excep, file=sys.stderr)
@@ -340,8 +347,9 @@ def main(argv=None):
     try:
         config.read(os.path.join(sys.path[0], _CONFIG_FILE))
     except configparser.Error as excep:
-        print("Error reading the configuration file: " + excep,
-              file=sys.stderr)
+        print(
+            "Error reading the configuration file: " + excep, file=sys.stderr
+        )
         return _ERR_RET_CODE
 
     try:
@@ -350,7 +358,8 @@ def main(argv=None):
             config["OEM_REPOSITORY_CONNECTION"]["PORT"],
             config["OEM_REPOSITORY_CONNECTION"]["USERNAME"],
             config["OEM_REPOSITORY_CONNECTION"]["PASSWORD"],
-            config["OEM_REPOSITORY_CONNECTION"]["SERVICE_NAME"])
+            config["OEM_REPOSITORY_CONNECTION"]["SERVICE_NAME"],
+        )
 
         targets = retrieve_oem_targets(repo_conn)
 
