@@ -8,6 +8,7 @@ Validated against OEM 13.4.
 
 Groups are dynamically created based on the following properties:
 
+* Repository name (section name in the config.ini file)
 * Lifecycle Status
 * Line of Business
 * Operating System family (e.g.: AIX, Linux, Windows)

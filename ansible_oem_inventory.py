@@ -10,8 +10,6 @@ Description: A python script to create an Ansible dynamic inventory
 Requires: cx_Oracle
 
 Version: $Id$
-
-TODO multiple repository support
 """
 
 import argparse
@@ -52,7 +50,7 @@ def connect_oracle(host_name, port, username, password, service_name):
     return conn
 
 
-def retrieve_oem_targets(repo_connection):
+def retrieve_oem_targets(repo_connection, repo_name):
     """Retrieves a list of OEM host targets
 
     Each list item is a tuple of:
@@ -60,6 +58,9 @@ def retrieve_oem_targets(repo_connection):
     - IP Address
     - Lifecycle Status
     - Line of Business
+    - Operating System family
+    - Operating System version
+    - Repository Name
 
     Args:
         repo_connection (cx_Oracle.Connection): a connection to OEM repository
@@ -82,7 +83,9 @@ def retrieve_oem_targets(repo_connection):
             regexp_replace(regexp_replace(lower(tgt.type_qualifier1),
                 '[^0-9a-z_]+', '_'), '^([0-9])', :os_ld_num) operating_system,
             regexp_replace(regexp_replace(lower(tgt.type_qualifier2),
-                '[^0-9a-z_]+', '_'), '^([0-9])', :os_ver_ld_num) os_version
+                '[^0-9a-z_]+', '_'), '^([0-9])', :os_ver_ld_num) os_version,
+            regexp_replace(regexp_replace(lower(:repo_name_bind),
+                '[^0-9a-z_]+', '_'), '^([0-9])', :repo_name_backref)
         from
             mgmt$target tgt
             join mgmt$target_properties ipadr
@@ -113,12 +116,16 @@ def retrieve_oem_targets(repo_connection):
     """
 
     query_cursor = repo_connection.cursor()
+    # The backreference is escaped as a bind variable due to a limitation
+    # on how \1 is escaped directly on a query text
     query_cursor.execute(
         query_txt,
         lfcl_ld_num="_\\1",
         lnbus_ld_num="_\\1",
         os_ld_num="_\\1",
         os_ver_ld_num="_\\1",
+        repo_name_bind=repo_name,
+        repo_name_backref="_\\1",
     )
 
     results = query_cursor.fetchall()
@@ -132,7 +139,7 @@ def build_dictionary(list_oem_targets):
     """Builds the dictionary for ansible
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -140,6 +147,7 @@ def build_dictionary(list_oem_targets):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
 
     Returns:
         dictionary - a dictionary of targets and groups for Ansible
@@ -152,6 +160,7 @@ def build_dictionary(list_oem_targets):
     build_line_business_groups(list_oem_targets, ansible_dict)
     build_os_version_groups(list_oem_targets, ansible_dict)
     build_oper_system_groups(list_oem_targets, ansible_dict)
+    build_repo_name_groups(list_oem_targets, ansible_dict)
 
     return ansible_dict
 
@@ -160,7 +169,7 @@ def build_meta_group(list_oem_targets, ansible_dict):
     """Builds the _meta group.
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -168,6 +177,7 @@ def build_meta_group(list_oem_targets, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
         ansible_dict (dictionary): the ansible dictionary under construction
     """
 
@@ -184,7 +194,7 @@ def build_line_business_groups(list_oem_targets, ansible_dict):
     """Builds groups based on Line of Business.
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -192,6 +202,7 @@ def build_line_business_groups(list_oem_targets, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     line_business_set = {lnbus[3] for lnbus in list_oem_targets}
@@ -205,7 +216,7 @@ def build_oper_system_groups(list_oem_targets, ansible_dict):
     """Builds parent groups based on Operating Systems.
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -213,6 +224,7 @@ def build_oper_system_groups(list_oem_targets, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     oper_syst_set = {oper_syst[4] for oper_syst in list_oem_targets}
@@ -228,7 +240,7 @@ def build_os_version_groups(list_oem_targets, ansible_dict):
     """Builds oper groups based on Operating Systems Versions.
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -236,6 +248,7 @@ def build_os_version_groups(list_oem_targets, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
         ansible_dict (dictionary): the ansible dictionary under construction
     """
     os_version_set = {os_version_set[5] for os_version_set in list_oem_targets}
@@ -255,7 +268,7 @@ def build_lifecycle_status_groups(list_oem_targets, ansible_dict):
        Returns the initial dictionary.
 
     Args:
-        list_oem_targets (list): list of OEM targets containing a 6-member
+        list_oem_targets (list): list of OEM targets containing a 7-member
                                  tuple of
                                  - Host name
                                  - IP Address
@@ -263,11 +276,34 @@ def build_lifecycle_status_groups(list_oem_targets, ansible_dict):
                                  - Line of Business
                                  - Operating System (OS)
                                  - OS version
+                                 - Repository Name
     """
     groups = {tgt[2] for tgt in list_oem_targets}
     for grp in groups:
         ansible_dict[grp] = {
             "hosts": [tgt[0] for tgt in list_oem_targets if tgt[2] == grp]
+        }
+
+
+def build_repo_name_groups(list_oem_targets, ansible_dict):
+    """Builds groups based on repository name.
+       Returns the initial dictionary.
+
+    Args:
+        list_oem_targets (list): list of OEM targets containing a 7-member
+                                 tuple of
+                                 - Host name
+                                 - IP Address
+                                 - Lifecycle Status
+                                 - Line of Business
+                                 - Operating System (OS)
+                                 - OS version
+                                 - Repository Name
+    """
+    groups = {tgt[6] for tgt in list_oem_targets}
+    for grp in groups:
+        ansible_dict[grp] = {
+            "hosts": [tgt[0] for tgt in list_oem_targets if tgt[6] == grp]
         }
 
 
@@ -306,20 +342,23 @@ def main(argv=None):
         config.read(os.path.join(sys.path[0], _CONFIG_FILE))
     except configparser.Error as excep:
         print(
-            "Error reading the configuration file: " + excep, file=sys.stderr
+            "Error reading the configuration file: " + str(excep),
+            file=sys.stderr,
         )
         return _ERR_RET_CODE
 
     try:
-        repo_conn = connect_oracle(
-            config["OEM_REPOSITORY_CONNECTION"]["HOST_NAME"],
-            config["OEM_REPOSITORY_CONNECTION"]["PORT"],
-            config["OEM_REPOSITORY_CONNECTION"]["USERNAME"],
-            config["OEM_REPOSITORY_CONNECTION"]["PASSWORD"],
-            config["OEM_REPOSITORY_CONNECTION"]["SERVICE_NAME"],
-        )
-
-        targets = retrieve_oem_targets(repo_conn)
+        targets = []
+        for repo_name in config.sections():
+            repo_conn = connect_oracle(
+                config[repo_name]["HOST_NAME"],
+                config[repo_name]["PORT"],
+                config[repo_name]["USERNAME"],
+                config[repo_name]["PASSWORD"],
+                config[repo_name]["SERVICE_NAME"],
+            )
+            targets_repo = retrieve_oem_targets(repo_conn, repo_name)
+            targets = targets + targets_repo
 
         cli_args = read_cli_args()
         if cli_args.list:
@@ -335,7 +374,10 @@ def main(argv=None):
 
         return _SUC_RET_CODE
     except cx_Oracle.DatabaseError as excep:
-        print("Error connecting to OEM Repository: " + excep, file=sys.stderr)
+        print(
+            "Error connecting to OEM Repository: " + str(excep),
+            file=sys.stderr,
+        )
         return _ERR_RET_CODE
 
 

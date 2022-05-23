@@ -1,4 +1,13 @@
-[OEM_REPOSITORY_CONNECTION]
+; First repository - mandatory
+[REPOSITORY_NAME]
+HOST_NAME =
+PORT =
+USERNAME =          ; Must be the OEM repository owner
+PASSWORD =
+SERVICE_NAME =
+
+; n-th repository - optional
+[REPOSITORY_NAME]
 HOST_NAME =
 PORT =
 USERNAME =          ; Must be the OEM repository owner
