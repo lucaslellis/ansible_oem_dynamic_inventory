@@ -9,6 +9,8 @@ Description: A python script to create an Ansible dynamic inventory
 
 Requires: cx_Oracle
 
+Version: $Id$
+
 TODO multiple repository support
 """
 
