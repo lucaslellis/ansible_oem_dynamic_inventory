@@ -26,11 +26,19 @@ Groups are dynamically created based on the following properties:
 
 ## Instructions
 
+* Ensure that the packages `python3` and `python3-pip` are installed (RHEL 7.x / OEL 7.x).
+* Install cx_Oracle with `pip3`. If you don't have root access, a local install for your user is enough.
+
+```bash
+pip3 install -U cx_Oracle --user
+```
+
 * Download the latest [release](../../releases/latest) and unzip it on a
   directory. The files [ansible_oem_inventory.py](ansible_oem_inventory.py) and
   [config.ini.template](config.ini.template) must exist on the same directory.
-
 * Rename [config.ini.template](config.ini.template) to `config.ini` and fill in the repository connection variables.
+* If you need additional static variables, the `group_vars` and `host_vars` directories must be created on the same
+  directory that the [ansible_oem_inventory.py](ansible_oem_inventory.py) is stored.
 
 ## Validation
 
