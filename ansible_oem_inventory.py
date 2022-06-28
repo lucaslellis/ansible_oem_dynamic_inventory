@@ -91,29 +91,23 @@ def retrieve_oem_targets(repo_connection, repo_name):
                 '[^0-9a-z_]+', '_'), '^([0-9])', :repo_name_backref)
         from
             mgmt$target tgt
-            join mgmt$target_properties ipadr
+            left outer join mgmt$target_properties ipadr
                 on tgt.target_name = ipadr.target_name
-            and tgt.target_type = ipadr.target_type
-            and tgt.target_guid = ipadr.target_guid
+                and tgt.target_type = ipadr.target_type
+                and tgt.target_guid = ipadr.target_guid
+                and ipadr.property_name = 'IP_address'
             left outer join mgmt$target_properties lfcl
                 on tgt.target_name = lfcl.target_name
-            and tgt.target_type = lfcl.target_type
-            and tgt.target_guid = lfcl.target_guid
+                and tgt.target_type = lfcl.target_type
+                and tgt.target_guid = lfcl.target_guid
+                and lfcl.property_name = 'orcl_gtp_lifecycle_status'
             left outer join mgmt$target_properties lnbus
                 on tgt.target_name = lnbus.target_name
-            and tgt.target_type = lnbus.target_type
-            and tgt.target_guid = lnbus.target_guid
+                and tgt.target_type = lnbus.target_type
+                and tgt.target_guid = lnbus.target_guid
+                and lnbus.property_name = 'orcl_gtp_line_of_bus'
         where
             tgt.target_type = 'host'
-            and ipadr.property_name = 'IP_address'
-            and (
-                lfcl.property_name = 'orcl_gtp_lifecycle_status'
-                or lfcl.property_name is null
-            )
-            and (
-                lnbus.property_name = 'orcl_gtp_line_of_bus'
-                or lnbus.property_name is null
-            )
         order by
             tgt.target_name
     """
@@ -186,7 +180,10 @@ def build_meta_group(list_oem_targets, ansible_dict):
     hostvars = {}
     for tgt in list_oem_targets:
         host_vars_item = {}
-        host_vars_item["ansible_host"] = tgt[1]
+        if tgt[1] is not None and tgt[1] != "127.0.0.1":
+            host_vars_item["ansible_host"] = tgt[1]
+        else:
+            host_vars_item["ansible_host"] = tgt[0]
         hostvars[tgt[0]] = host_vars_item
 
     ansible_dict["_meta"] = {"hostvars": hostvars}
