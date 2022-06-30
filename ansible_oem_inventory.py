@@ -16,6 +16,7 @@ import argparse
 import configparser
 import json
 import os
+import re
 import sys
 
 import cx_Oracle
@@ -177,10 +178,18 @@ def build_meta_group(list_oem_targets, ansible_dict):
         ansible_dict (dictionary): the ansible dictionary under construction
     """
 
+    ipv4_regexp = re.compile(
+        r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)(\.(?!$)|$)){4}$"
+    )
+
     hostvars = {}
     for tgt in list_oem_targets:
         host_vars_item = {}
-        if tgt[1] is not None and tgt[1] != "127.0.0.1":
+        if (
+            tgt[1] is not None
+            and tgt[1] != "127.0.0.1"
+            and ipv4_regexp.match(tgt[1]) is not None
+        ):
             host_vars_item["ansible_host"] = tgt[1]
         else:
             host_vars_item["ansible_host"] = tgt[0]
